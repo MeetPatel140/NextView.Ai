@@ -1,0 +1,262 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - NextView.AI{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="mb-3">Dashboard</h1>
+        <p class="lead">Welcome back, {{ current_user.full_name }}! Here's an overview of your data and insights.</p>
+    </div>
+</div>
+
+<!-- Stats Overview -->
+<div class="row mb-4">
+    <div class="col-md-4 mb-3">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Datasets</h6>
+                        <h3 class="mb-0">{{ datasets|length }}</h3>
+                    </div>
+                    <div class="bg-light rounded-circle p-3">
+                        <i class="fas fa-database fa-2x text-primary"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Visualizations</h6>
+                        <h3 class="mb-0">{{ visualizations|length }}</h3>
+                    </div>
+                    <div class="bg-light rounded-circle p-3">
+                        <i class="fas fa-chart-bar fa-2x text-primary"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Chat Sessions</h6>
+                        <h3 class="mb-0">{{ chat_sessions|length }}</h3>
+                    </div>
+                    <div class="bg-light rounded-circle p-3">
+                        <i class="fas fa-robot fa-2x text-primary"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mb-5">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Quick Actions</h5>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="{{ url_for('main.datasets') }}" class="btn btn-primary">
+                        <i class="fas fa-upload me-2"></i> Upload Dataset
+                    </a>
+                    <a href="{{ url_for('main.create_visualization') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-chart-line me-2"></i> Create Visualization
+                    </a>
+                    <a href="{{ url_for('main.chat') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-comment-dots me-2"></i> Start New Chat
+                    </a>
+                    <a href="#" class="btn btn-outline-secondary">
+                        <i class="fas fa-file-pdf me-2"></i> Generate Report
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Datasets -->
+{% if datasets %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="h4 mb-3">Recent Datasets</h2>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Name</th>
+                        <th>Rows</th>
+                        <th>Columns</th>
+                        <th>Created</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for dataset in datasets[:5] %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('main.dataset_detail', dataset_id=dataset.id) }}" class="text-decoration-none">
+                                {{ dataset.name }}
+                            </a>
+                        </td>
+                        <td>{{ dataset.row_count or 'N/A' }}</td>
+                        <td>{{ dataset.column_count or 'N/A' }}</td>
+                        <td>{{ dataset.created_at.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            {% if dataset.is_processed %}
+                            <span class="badge bg-success">Processed</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">Processing</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('main.dataset_detail', dataset_id=dataset.id) }}" class="btn btn-outline-primary">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ url_for('main.create_visualization') }}?dataset_id={{ dataset.id }}" class="btn btn-outline-primary">
+                                    <i class="fas fa-chart-bar"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if datasets|length > 5 %}
+        <div class="text-end">
+            <a href="{{ url_for('main.datasets') }}" class="btn btn-sm btn-link">View all datasets</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Recent Visualizations -->
+{% if visualizations %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="h4 mb-3">Recent Visualizations</h2>
+    </div>
+    {% for visualization in visualizations[:3] %}
+    <div class="col-md-4 mb-3">
+        <div class="card visualization-card">
+            <div class="card-body">
+                <h5 class="card-title">{{ visualization.name }}</h5>
+                <p class="card-text small text-muted">{{ visualization.chart_type|capitalize }} Chart</p>
+                <div class="chart-container mb-3">
+                    <canvas id="chart-{{ visualization.id }}"></canvas>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('main.visualization_detail', visualization_id=visualization.id) }}" class="btn btn-sm btn-outline-primary">
+                        View Details
+                    </a>
+                    <span class="text-muted small">{{ visualization.created_at.strftime('%Y-%m-%d') }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% if visualizations|length > 3 %}
+    <div class="col-12 text-end">
+        <a href="{{ url_for('main.visualizations') }}" class="btn btn-sm btn-link">View all visualizations</a>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Recent Chat Sessions -->
+{% if chat_sessions %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="h4 mb-3">Recent Chat Sessions</h2>
+        <div class="list-group">
+            {% for session in chat_sessions[:3] %}
+            <a href="{{ url_for('main.chat_session', session_id=session.session_id) }}" class="list-group-item list-group-item-action">
+                <div class="d-flex w-100 justify-content-between">
+                    <h5 class="mb-1">{{ session.title or 'Chat Session ' + session.id|string }}</h5>
+                    <small>{{ session.updated_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                </div>
+                <p class="mb-1 text-truncate">
+                    {% if session.messages.first() %}
+                    {{ session.messages.first().content[:100] }}{% if session.messages.first().content|length > 100 %}...{% endif %}
+                    {% else %}
+                    No messages yet
+                    {% endif %}
+                </p>
+                <small>
+                    <i class="fas fa-comment-dots me-1"></i> {{ session.messages.count() }} messages
+                    {% if session.dataset %}
+                    <span class="ms-2"><i class="fas fa-database me-1"></i> {{ session.dataset.name }}</span>
+                    {% endif %}
+                </small>
+            </a>
+            {% endfor %}
+        </div>
+        {% if chat_sessions|length > 3 %}
+        <div class="text-end mt-2">
+            <a href="{{ url_for('main.chat') }}" class="btn btn-sm btn-link">View all chat sessions</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% if not datasets and not visualizations and not chat_sessions %}
+<div class="row">
+    <div class="col-12 text-center py-5">
+        <div class="py-5">
+            <i class="fas fa-chart-line fa-5x text-muted mb-4"></i>
+            <h2>Welcome to NextView.AI!</h2>
+            <p class="lead mb-4">Get started by uploading your first dataset.</p>
+            <a href="{{ url_for('main.datasets') }}" class="btn btn-primary btn-lg">
+                <i class="fas fa-upload me-2"></i> Upload Dataset
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        {% for visualization in visualizations[:3] %}
+        // Load visualization data for chart-{{ visualization.id }}
+        fetch('{{ url_for("main.visualization_data", visualization_id=visualization.id) }}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Error loading visualization data:', data.error);
+                    return;
+                }
+                
+                const ctx = document.getElementById('chart-{{ visualization.id }}').getContext('2d');
+                const chartType = '{{ visualization.chart_type }}';
+                
+                // Create chart based on type
+                new Chart(ctx, {
+                    type: chartType,
+                    data: data.chart_data,
+                    options: data.chart_options || {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            })
+            .catch(error => console.error('Error fetching visualization data:', error));
+        {% endfor %}
+    });
+</script>
+{% endblock %}

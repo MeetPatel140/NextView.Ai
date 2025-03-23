@@ -1,0 +1,362 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Visualization - NextView.AI{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <h1 class="mb-0">Create Visualization</h1>
+        <a href="{{ url_for('main.visualizations') }}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-2"></i> Back to Visualizations
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('main.create_visualization') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div class="mb-4">
+                        <h5>1. Select Dataset</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="dataset_id" class="form-label">Dataset</label>
+                                    <select class="form-select" id="dataset_id" name="dataset_id" required>
+                                        <option value="" selected disabled>Select a dataset</option>
+                                        {% for dataset in datasets %}
+                                        <option value="{{ dataset.id }}" {% if request.args.get('dataset_id')|int == dataset.id %}selected{% endif %}>
+                                            {{ dataset.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h5>2. Visualization Details</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="name" class="form-label">Visualization Name</label>
+                                    <input type="text" class="form-control" id="name" name="name" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="chart_type" class="form-label">Chart Type</label>
+                                    <select class="form-select" id="chart_type" name="chart_type" required>
+                                        <option value="bar">Bar Chart</option>
+                                        <option value="line">Line Chart</option>
+                                        <option value="pie">Pie Chart</option>
+                                        <option value="doughnut">Doughnut Chart</option>
+                                        <option value="polarArea">Polar Area Chart</option>
+                                        <option value="radar">Radar Chart</option>
+                                        <option value="scatter">Scatter Plot</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h5>3. Data Configuration</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="x_axis" class="form-label">X-Axis (Categories)</label>
+                                    <select class="form-select" id="x_axis" name="x_axis" required disabled>
+                                        <option value="" selected disabled>Select dataset first</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="y_axis" class="form-label">Y-Axis (Values)</label>
+                                    <select class="form-select" id="y_axis" name="y_axis" required disabled>
+                                        <option value="" selected disabled>Select dataset first</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="aggregation" class="form-label">Aggregation Method</label>
+                                    <select class="form-select" id="aggregation" name="aggregation">
+                                        <option value="sum">Sum</option>
+                                        <option value="avg">Average</option>
+                                        <option value="min">Minimum</option>
+                                        <option value="max">Maximum</option>
+                                        <option value="count">Count</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="colors" class="form-label">Color Scheme</label>
+                                    <select class="form-select" id="colors" name="colors">
+                                        <option value="default">Default</option>
+                                        <option value="pastel">Pastel</option>
+                                        <option value="vibrant">Vibrant</option>
+                                        <option value="monochrome">Monochrome</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h5>4. Filters (Optional)</h5>
+                        <div id="filters-container">
+                            <!-- Filters will be added here dynamically -->
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary btn-sm mt-2" id="addFilter" disabled>
+                            <i class="fas fa-plus me-1"></i> Add Filter
+                        </button>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h5>5. Preview</h5>
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <div class="chart-container" style="height: 300px;">
+                                    <canvas id="previewChart"></canvas>
+                                </div>
+                                <div class="text-center mt-3" id="previewMessage">
+                                    <p class="text-muted">Configure your visualization to see a preview</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="button" class="btn btn-outline-secondary me-md-2" id="resetForm">Reset</button>
+                        <button type="submit" class="btn btn-primary">Create Visualization</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const datasetSelect = document.getElementById('dataset_id');
+        const xAxisSelect = document.getElementById('x_axis');
+        const yAxisSelect = document.getElementById('y_axis');
+        const chartTypeSelect = document.getElementById('chart_type');
+        const addFilterBtn = document.getElementById('addFilter');
+        const filtersContainer = document.getElementById('filters-container');
+        const previewChart = document.getElementById('previewChart');
+        const previewMessage = document.getElementById('previewMessage');
+        const resetFormBtn = document.getElementById('resetForm');
+        
+        let chart;
+        let datasetColumns = [];
+        
+        // Load dataset columns when dataset is selected
+        datasetSelect.addEventListener('change', function() {
+            const datasetId = this.value;
+            if (!datasetId) return;
+            
+            // Fetch dataset columns
+            fetch(`/api/datasets/${datasetId}/columns`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        console.error('Error loading dataset columns:', data.error);
+                        return;
+                    }
+                    
+                    datasetColumns = data.columns;
+                    
+                    // Populate X-Axis select
+                    xAxisSelect.innerHTML = '';
+                    xAxisSelect.disabled = false;
+                    
+                    // Populate Y-Axis select
+                    yAxisSelect.innerHTML = '';
+                    yAxisSelect.disabled = false;
+                    
+                    // Add options to selects
+                    datasetColumns.forEach(column => {
+                        const xOption = document.createElement('option');
+                        xOption.value = column.name;
+                        xOption.textContent = `${column.name} (${column.type})`;
+                        xAxisSelect.appendChild(xOption);
+                        
+                        const yOption = document.createElement('option');
+                        yOption.value = column.name;
+                        yOption.textContent = `${column.name} (${column.type})`;
+                        yAxisSelect.appendChild(yOption);
+                    });
+                    
+                    // Enable add filter button
+                    addFilterBtn.disabled = false;
+                })
+                .catch(error => console.error('Error fetching dataset columns:', error));
+        });
+        
+        // Add filter
+        addFilterBtn.addEventListener('click', function() {
+            const filterIndex = filtersContainer.children.length;
+            const filterHtml = `
+                <div class="filter-item card mb-2">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-2">
+                                    <label class="form-label">Column</label>
+                                    <select class="form-select filter-column" name="filters[${filterIndex}][column]">
+                                        ${datasetColumns.map(column => `<option value="${column.name}">${column.name}</option>`).join('')}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-2">
+                                    <label class="form-label">Operator</label>
+                                    <select class="form-select" name="filters[${filterIndex}][operator]">
+                                        <option value="equals">Equals</option>
+                                        <option value="not_equals">Not Equals</option>
+                                        <option value="greater_than">Greater Than</option>
+                                        <option value="less_than">Less Than</option>
+                                        <option value="contains">Contains</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-2">
+                                    <label class="form-label">Value</label>
+                                    <input type="text" class="form-control" name="filters[${filterIndex}][value]">
+                                </div>
+                            </div>
+                            <div class="col-md-1 d-flex align-items-end">
+                                <button type="button" class="btn btn-outline-danger btn-sm remove-filter mb-2">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = filterHtml;
+            const filterElement = tempDiv.firstElementChild;
+            
+            filtersContainer.appendChild(filterElement);
+            
+            // Add event listener to remove button
+            filterElement.querySelector('.remove-filter').addEventListener('click', function() {
+                filterElement.remove();
+                updatePreview();
+            });
+            
+            // Add event listeners to filter inputs for preview updates
+            const filterInputs = filterElement.querySelectorAll('select, input');
+            filterInputs.forEach(input => {
+                input.addEventListener('change', updatePreview);
+            });
+        });
+        
+        // Update preview when configuration changes
+        const configInputs = document.querySelectorAll('#x_axis, #y_axis, #chart_type, #aggregation, #colors');
+        configInputs.forEach(input => {
+            input.addEventListener('change', updatePreview);
+        });
+        
+        // Reset form
+        resetFormBtn.addEventListener('click', function() {
+            document.querySelector('form').reset();
+            xAxisSelect.disabled = true;
+            yAxisSelect.disabled = true;
+            addFilterBtn.disabled = true;
+            filtersContainer.innerHTML = '';
+            
+            if (chart) {
+                chart.destroy();
+                chart = null;
+            }
+            
+            previewMessage.style.display = 'block';
+        });
+        
+        // Update preview chart
+        function updatePreview() {
+            const datasetId = datasetSelect.value;
+            const xAxis = xAxisSelect.value;
+            const yAxis = yAxisSelect.value;
+            const chartType = chartTypeSelect.value;
+            
+            if (!datasetId || !xAxis || !yAxis) {
+                return;
+            }
+            
+            // Collect form data
+            const formData = new FormData(document.querySelector('form'));
+            const config = {
+                dataset_id: formData.get('dataset_id'),
+                x_axis: formData.get('x_axis'),
+                y_axis: formData.get('y_axis'),
+                chart_type: formData.get('chart_type'),
+                aggregation: formData.get('aggregation'),
+                colors: formData.get('colors')
+            };
+            
+            // Collect filters
+            const filters = [];
+            document.querySelectorAll('.filter-item').forEach((item, index) => {
+                filters.push({
+                    column: formData.get(`filters[${index}][column]`),
+                    operator: formData.get(`filters[${index}][operator]`),
+                    value: formData.get(`filters[${index}][value]`)
+                });
+            });
+            
+            config.filters = filters;
+            
+            // Fetch preview data
+            fetch('/api/visualizations/preview', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': formData.get('csrf_token')
+                },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Error generating preview:', data.error);
+                    return;
+                }
+                
+                // Clear previous chart
+                if (chart) {
+                    chart.destroy();
+                }
+                
+                previewMessage.style.display = 'none';
+                
+                // Create new chart
+                const ctx = previewChart.getContext('2d');
+                chart = new Chart(ctx, data.chart_config);
+            })
+            .catch(error => console.error('Error fetching preview data:', error));
+        }
+    });
+</script>
+{% endblock %}

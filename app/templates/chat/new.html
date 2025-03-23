@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}New Chat{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="mb-3">Start New Chat</h1>
+            <p class="lead">Begin a new conversation with our AI assistant. You can optionally link this chat to a dataset for data-specific insights.</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{{ url_for('main.chat') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Chats
+            </a>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('main.new_chat') }}">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Chat Title (Optional)</label>
+                            <input type="text" class="form-control" id="title" name="title" placeholder="My New Chat">
+                            <div class="form-text">If left blank, a title will be generated based on your conversation.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="dataset_id" class="form-label">Link to Dataset (Optional)</label>
+                            <select class="form-select" id="dataset_id" name="dataset_id">
+                                <option value="">None - General conversation</option>
+                                {% for dataset in datasets %}
+                                <option value="{{ dataset.id }}">{{ dataset.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Linking to a dataset allows the AI to analyze and answer questions about your data.</div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-plus-circle me-2"></i>Create Chat
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

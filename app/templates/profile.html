@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="mb-3">My Profile</h1>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-user-circle fa-5x text-primary"></i>
+                    </div>
+                    <h5 class="card-title">{{ current_user.username }}</h5>
+                    <p class="card-text text-muted">{{ current_user.email }}</p>
+                    <p class="card-text">
+                        <span class="badge bg-primary">{{ current_user.roles[0].name }}</span>
+                    </p>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">Account Actions</div>
+                <div class="list-group list-group-flush">
+                    <a href="{{ url_for('auth.change_password') }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-key me-2"></i> Change Password
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">Account Information</div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-sm-3">
+                            <h6 class="mb-0">Full Name</h6>
+                        </div>
+                        <div class="col-sm-9 text-secondary">
+                            {{ current_user.first_name }} {{ current_user.last_name }}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-3">
+                            <h6 class="mb-0">Email</h6>
+                        </div>
+                        <div class="col-sm-9 text-secondary">
+                            {{ current_user.email }}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-3">
+                            <h6 class="mb-0">Username</h6>
+                        </div>
+                        <div class="col-sm-9 text-secondary">
+                            {{ current_user.username }}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-3">
+                            <h6 class="mb-0">Member Since</h6>
+                        </div>
+                        <div class="col-sm-9 text-secondary">
+                            {{ current_user.created_at.strftime('%Y-%m-%d') }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">Activity Summary</div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="card stat-card">
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ datasets|length }}</h5>
+                                    <p class="card-text">Datasets</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="card stat-card">
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ visualizations|length }}</h5>
+                                    <p class="card-text">Visualizations</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="card stat-card">
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ chat_sessions|length }}</h5>
+                                    <p class="card-text">Chat Sessions</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

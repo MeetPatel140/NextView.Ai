@@ -1,0 +1,276 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ visualization.name }} - NextView.AI{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <h1 class="mb-0">{{ visualization.name }}</h1>
+        <div class="btn-group">
+            <a href="{{ url_for('main.visualizations') }}" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left me-2"></i> Back to Visualizations
+            </a>
+            <button class="btn btn-outline-primary" id="downloadPDF">
+                <i class="fas fa-file-pdf me-2"></i> Download PDF
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <div class="chart-container" style="height: 400px;">
+                    <canvas id="mainChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Visualization Details</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">{{ visualization.description }}</p>
+                <div class="mb-3">
+                    <strong>Chart Type:</strong> <span class="badge bg-primary">{{ visualization.chart_type|capitalize }}</span>
+                </div>
+                <div class="mb-3">
+                    <strong>Dataset:</strong> <a href="{{ url_for('main.dataset_detail', dataset_id=visualization.dataset_id) }}">{{ visualization.dataset.name }}</a>
+                </div>
+                <div class="mb-3">
+                    <strong>Created:</strong> {{ visualization.created_at.strftime('%Y-%m-%d %H:%M') }}
+                </div>
+                <div class="mb-3">
+                    <strong>Last Updated:</strong> {{ visualization.updated_at.strftime('%Y-%m-%d %H:%M') }}
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Chart Options</h5>
+            </div>
+            <div class="card-body">
+                <form id="chartOptionsForm">
+                    <div class="mb-3">
+                        <label for="chartType" class="form-label">Chart Type</label>
+                        <select class="form-select" id="chartType">
+                            <option value="bar" {% if visualization.chart_type == 'bar' %}selected{% endif %}>Bar Chart</option>
+                            <option value="line" {% if visualization.chart_type == 'line' %}selected{% endif %}>Line Chart</option>
+                            <option value="pie" {% if visualization.chart_type == 'pie' %}selected{% endif %}>Pie Chart</option>
+                            <option value="doughnut" {% if visualization.chart_type == 'doughnut' %}selected{% endif %}>Doughnut Chart</option>
+                            <option value="polarArea" {% if visualization.chart_type == 'polarArea' %}selected{% endif %}>Polar Area Chart</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="colorScheme" class="form-label">Color Scheme</label>
+                        <select class="form-select" id="colorScheme">
+                            <option value="default">Default</option>
+                            <option value="pastel">Pastel</option>
+                            <option value="vibrant">Vibrant</option>
+                            <option value="monochrome">Monochrome</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="showLegend" checked>
+                        <label class="form-check-label" for="showLegend">Show Legend</label>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="showLabels" checked>
+                        <label class="form-check-label" for="showLabels">Show Data Labels</label>
+                    </div>
+                    
+                    <button type="button" id="updateChart" class="btn btn-primary w-100">
+                        <i class="fas fa-sync-alt me-2"></i> Update Chart
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Data Table</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover" id="dataTable">
+                        <thead>
+                            <tr id="tableHeader">
+                                <!-- Will be populated by JavaScript -->
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <!-- Will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        let chart;
+        let chartData;
+        
+        // Fetch visualization data
+        fetch('{{ url_for("main.visualization_data", visualization_id=visualization.id) }}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Error loading visualization data:', data.error);
+                    return;
+                }
+                
+                chartData = data;
+                createChart(data.chart_data, data.chart_options);
+                populateDataTable(data.table_data);
+            })
+            .catch(error => console.error('Error fetching visualization data:', error));
+        
+        // Create chart function
+        function createChart(data, options) {
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            const chartType = '{{ visualization.chart_type }}';
+            
+            // Destroy existing chart if it exists
+            if (chart) {
+                chart.destroy();
+            }
+            
+            // Create new chart
+            chart = new Chart(ctx, {
+                type: chartType,
+                data: data,
+                options: options || {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            enabled: true
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Populate data table function
+        function populateDataTable(tableData) {
+            if (!tableData || !tableData.columns || !tableData.rows) return;
+            
+            const tableHeader = document.getElementById('tableHeader');
+            const tableBody = document.getElementById('tableBody');
+            
+            // Clear existing content
+            tableHeader.innerHTML = '';
+            tableBody.innerHTML = '';
+            
+            // Add header columns
+            tableData.columns.forEach(column => {
+                const th = document.createElement('th');
+                th.textContent = column;
+                tableHeader.appendChild(th);
+            });
+            
+            // Add data rows
+            tableData.rows.forEach(row => {
+                const tr = document.createElement('tr');
+                
+                tableData.columns.forEach(column => {
+                    const td = document.createElement('td');
+                    td.textContent = row[column] !== undefined ? row[column] : '';
+                    tr.appendChild(td);
+                });
+                
+                tableBody.appendChild(tr);
+            });
+        }
+        
+        // Update chart when options change
+        document.getElementById('updateChart').addEventListener('click', function() {
+            if (!chartData) return;
+            
+            const chartType = document.getElementById('chartType').value;
+            const colorScheme = document.getElementById('colorScheme').value;
+            const showLegend = document.getElementById('showLegend').checked;
+            const showLabels = document.getElementById('showLabels').checked;
+            
+            // Update chart type
+            chart.config.type = chartType;
+            
+            // Update colors based on scheme
+            if (colorScheme === 'pastel') {
+                chart.data.datasets.forEach((dataset, i) => {
+                    dataset.backgroundColor = [
+                        'rgba(255, 182, 193, 0.7)',
+                        'rgba(173, 216, 230, 0.7)',
+                        'rgba(152, 251, 152, 0.7)',
+                        'rgba(221, 160, 221, 0.7)',
+                        'rgba(255, 218, 185, 0.7)',
+                        'rgba(176, 224, 230, 0.7)'
+                    ][i % 6];
+                });
+            } else if (colorScheme === 'vibrant') {
+                chart.data.datasets.forEach((dataset, i) => {
+                    dataset.backgroundColor = [
+                        'rgba(255, 99, 132, 0.8)',
+                        'rgba(54, 162, 235, 0.8)',
+                        'rgba(255, 206, 86, 0.8)',
+                        'rgba(75, 192, 192, 0.8)',
+                        'rgba(153, 102, 255, 0.8)',
+                        'rgba(255, 159, 64, 0.8)'
+                    ][i % 6];
+                });
+            } else if (colorScheme === 'monochrome') {
+                chart.data.datasets.forEach((dataset, i) => {
+                    dataset.backgroundColor = [
+                        'rgba(70, 70, 70, 0.9)',
+                        'rgba(100, 100, 100, 0.8)',
+                        'rgba(130, 130, 130, 0.7)',
+                        'rgba(160, 160, 160, 0.6)',
+                        'rgba(190, 190, 190, 0.5)',
+                        'rgba(220, 220, 220, 0.4)'
+                    ][i % 6];
+                });
+            }
+            
+            // Update legend display
+            chart.options.plugins.legend.display = showLegend;
+            
+            // Update data labels
+            chart.options.plugins.datalabels = {
+                display: showLabels,
+                color: '#fff',
+                font: {
+                    weight: 'bold'
+                }
+            };
+            
+            // Update the chart
+            chart.update();
+        });
+        
+        // Download PDF
+        document.getElementById('downloadPDF').addEventListener('click', function() {
+            window.location.href = '{{ url_for("main.visualization_pdf", visualization_id=visualization.id) }}';
+        });
+    });
+</script>
+{% endblock %}

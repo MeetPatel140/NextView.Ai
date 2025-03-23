@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+
+{% block title %}Welcome to NextView.AI{% endblock %}
+
+{% block content %}
+<div class="row align-items-center">
+    <div class="col-lg-6">
+        <h1 class="display-4 fw-bold mb-4">Transform Your Data with AI</h1>
+        <p class="lead mb-4">
+            NextView.AI is an AI-powered data visualization and chatbot platform that helps you extract insights, generate reports, and visualize your data in minutes.
+        </p>
+        <div class="d-grid gap-2 d-md-flex justify-content-md-start mb-4">
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary btn-lg px-4 me-md-2">
+                <i class="fas fa-tachometer-alt me-2"></i> Go to Dashboard
+            </a>
+            {% else %}
+            <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-lg px-4 me-md-2">
+                <i class="fas fa-sign-in-alt me-2"></i> Get Started
+            </a>
+            <a href="{{ url_for('auth.register') }}" class="btn btn-outline-secondary btn-lg px-4">
+                <i class="fas fa-user-plus me-2"></i> Register
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" class="d-block mx-auto" width="400" alt="NextView.AI Platform">
+    </div>
+</div>
+
+<div class="row mt-5 pt-5">
+    <div class="col-12 text-center mb-4">
+        <h2 class="fw-bold">Key Features</h2>
+        <p class="lead">Everything you need to analyze and visualize your data</p>
+    </div>
+</div>
+
+<div class="row g-4 py-4">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    <i class="fas fa-file-excel fa-3x text-primary"></i>
+                </div>
+                <h5 class="card-title text-center">Data Upload & Processing</h5>
+                <p class="card-text">Upload Excel files and let our AI automatically process, clean, and prepare your data for analysis.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    <i class="fas fa-chart-bar fa-3x text-primary"></i>
+                </div>
+                <h5 class="card-title text-center">Smart Visualizations</h5>
+                <p class="card-text">Create interactive charts and tables with real-time filters to explore your data from every angle.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    <i class="fas fa-robot fa-3x text-primary"></i>
+                </div>
+                <h5 class="card-title text-center">AI-Powered Chatbot</h5>
+                <p class="card-text">Ask questions about your data in natural language and get instant insights and visualizations.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 py-4">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    <i class="fas fa-file-pdf fa-3x text-primary"></i>
+                </div>
+                <h5 class="card-title text-center">PDF Report Generation</h5>
+                <p class="card-text">Download customizable PDF reports with tables, charts, and AI-generated insights.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    <i class="fas fa-brain fa-3x text-primary"></i>
+                </div>
+                <h5 class="card-title text-center">AI Insights</h5>
+                <p class="card-text">Discover patterns, correlations, and trends in your data with AI-powered analysis.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    <i class="fas fa-bolt fa-3x text-primary"></i>
+                </div>
+                <h5 class="card-title text-center">Real-Time Processing</h5>
+                <p class="card-text">Process large datasets in the background and get notified when your results are ready.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
