@@ -26,9 +26,10 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in current_app.config['ALLOWED_EXTENSIONS']
 
-@celery.task(bind=True)
+@celery.task(name='app.main.routes.process_dataset', bind=True)
 def process_dataset(self, dataset_id):
     """Process uploaded dataset and extract metadata"""
+    # The app context is now handled by the ContextTask class
     dataset = Dataset.query.get(dataset_id)
     if not dataset:
         return False

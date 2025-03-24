@@ -21,8 +21,8 @@ class Config:
     ALLOWED_EXTENSIONS = {'xlsx'}
     
     # Celery configuration
-    CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL') or 'redis://localhost:6379/0'
-    CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND') or 'redis://localhost:6379/0'
+    broker_url = os.environ.get('CELERY_BROKER_URL') or 'redis://localhost:6379/0'
+    result_backend = os.environ.get('RESULT_BACKEND') or os.environ.get('CELERY_RESULT_BACKEND') or 'redis://localhost:6379/0'
     
     # OpenAI API configuration
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
