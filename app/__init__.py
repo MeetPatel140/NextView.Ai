@@ -1,4 +1,5 @@
 import os
+import logging
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -8,36 +9,43 @@ from flask_wtf.csrf import CSRFProtect
 from celery import Celery
 from config import get_config
 
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Initialize extensions
 db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()
 csrf = CSRFProtect()
-celery = Celery()
+celery = Celery("nextview")
 
 def create_celery_app(app=None):
     app = app or create_app()
     
     # Configure Celery directly with broker and backend URLs
-    celery.conf.broker_url = app.config.get('broker_url')
-    celery.conf.result_backend = app.config.get('result_backend')
-    
-    # Set broker_connection_retry_on_startup to True to fix deprecation warning
-    celery.conf.broker_connection_retry_on_startup = True
-    
-    # Set task_create_missing_queues to ensure tasks are properly routed
-    celery.conf.task_create_missing_queues = True
-    
-    # Configure task serialization
-    celery.conf.task_serializer = 'json'
-    celery.conf.result_serializer = 'json'
-    celery.conf.accept_content = ['json']
-    
-    # Set task_always_eager to False to ensure tasks are processed by workers
-    celery.conf.task_always_eager = False
-    
-    # Set task_acks_late to True to ensure tasks are acknowledged after execution
-    celery.conf.task_acks_late = True
+    celery.conf.update(
+        broker_url=app.config.get('CELERY_BROKER_URL', app.config.get('broker_url', 'redis://localhost:6379/0')),
+        result_backend=app.config.get('CELERY_RESULT_BACKEND', app.config.get('result_backend', 'redis://localhost:6379/0')),
+        broker_connection_retry_on_startup=True,
+        task_create_missing_queues=True,
+        task_serializer='json',
+        result_serializer='json',
+        accept_content=['json'],
+        task_always_eager=False,
+        task_acks_late=True,
+        task_track_started=True,
+        result_expires=3600,  # Results expire after 1 hour
+        worker_hijack_root_logger=False,
+        worker_prefetch_multiplier=1,
+        broker_connection_timeout=10,
+        broker_connection_max_retries=None,  # Retry indefinitely
+        broker_transport_options={'visibility_timeout': 3600},  # 1 hour timeout
+        worker_max_tasks_per_child=1000,  # Restart worker after 1000 tasks
+        worker_concurrency=4,  # Number of worker processes
+        task_time_limit=300,  # 5 minutes max task execution time
+        task_soft_time_limit=240  # 4 minutes soft timeout
+    )
     
     # Define a custom task class that maintains Flask app context
     class ContextTask(celery.Task):
@@ -45,14 +53,24 @@ def create_celery_app(app=None):
         
         def __call__(self, *args, **kwargs):
             with app.app_context():
-                return self.run(*args, **kwargs)
+                try:
+                    return self.run(*args, **kwargs)
+                except Exception as e:
+                    logger.exception(f"Task {self.name} failed: {str(e)}")
+                    raise
     
     celery.Task = ContextTask
+    logger.info("Celery configured with broker: %s", celery.conf.broker_url)
+    
     return celery
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(get_config())
+    
+    # Configure Flask app logging
+    if not app.debug:
+        logging.getLogger('werkzeug').setLevel(logging.WARNING)
     
     # Initialize extensions with app
     db.init_app(app)
@@ -84,8 +102,8 @@ def create_app():
     from app.chatbot import bp as chatbot_bp
     app.register_blueprint(chatbot_bp, url_prefix='/chatbot')
     
-    # Initialize Celery
-    celery_instance = create_celery_app(app)
+    from app.data_processing import bp as data_processing_bp
+    app.register_blueprint(data_processing_bp, url_prefix='/data-processing')
     
     # Add context processor for template variables
     @app.context_processor
@@ -95,8 +113,13 @@ def create_app():
     
     return app
 
+# Create global celery instance
 app = create_app()
 celery = create_celery_app(app)
 
 # Import models to ensure they are registered with SQLAlchemy
 from app import models
+
+# Import tasks to ensure they are registered with Celery
+with app.app_context():
+    import app.main.routes

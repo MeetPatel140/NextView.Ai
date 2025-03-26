@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}NLP Processor Test{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1>NLP Processor Test</h1>
+            <p class="text-muted">Use this page to test the Natural Language Processing capabilities.</p>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Input</h5>
+                </div>
+                <div class="card-body">
+                    <form id="nlp-test-form">
+                        <div class="mb-3">
+                            <label for="dataset" class="form-label">Dataset</label>
+                            <select class="form-select" id="dataset" required>
+                                <option value="">Select a dataset</option>
+                                {% for dataset in datasets %}
+                                <option value="{{ dataset.id }}">{{ dataset.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="query" class="form-label">Natural Language Query</label>
+                            <textarea class="form-control" id="query" rows="3" required placeholder="e.g., Show me a bar chart of sales by region"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary" id="process-btn">
+                            Process Query
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Example Queries</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group example-queries">
+                        <li class="list-group-item query-example">Show me a bar chart of sales by region</li>
+                        <li class="list-group-item query-example">Compare sales and purchases over time</li>
+                        <li class="list-group-item query-example">What's the trend of revenue over the last year?</li>
+                        <li class="list-group-item query-example">Create a pie chart showing inventory by category</li>
+                        <li class="list-group-item query-example">Generate a report on sales performance</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Results</h5>
+                    <div class="spinner-border text-primary d-none" id="loading-spinner" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+                <div class="card-body" id="results-container">
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-robot fa-3x mb-3"></i>
+                        <p>Enter a query and select a dataset to see results.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Handle example query clicks
+        $('.query-example').click(function() {
+            $('#query').val($(this).text());
+        });
+        
+        // Handle form submission
+        $('#nlp-test-form').submit(function(e) {
+            e.preventDefault();
+            
+            const datasetId = $('#dataset').val();
+            const query = $('#query').val();
+            
+            if (!datasetId || !query) {
+                alert('Please select a dataset and enter a query.');
+                return;
+            }
+            
+            // Show loading spinner
+            $('#loading-spinner').removeClass('d-none');
+            $('#process-btn').prop('disabled', true);
+            
+            // Clear previous results
+            $('#results-container').html('');
+            
+            // Make API request
+            $.ajax({
+                url: '{{ url_for("api.test_nlp") }}',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    dataset_id: datasetId,
+                    query: query
+                }),
+                success: function(response) {
+                    // Hide loading spinner
+                    $('#loading-spinner').addClass('d-none');
+                    $('#process-btn').prop('disabled', false);
+                    
+                    let resultHtml = '';
+                    
+                    // Add report HTML if available
+                    if (response.report_html) {
+                        resultHtml += response.report_html;
+                    }
+                    
+                    // Add image if available
+                    if (response.image_data) {
+                        resultHtml += `<img src="data:image/png;base64,${response.image_data}" alt="Data Visualization" class="img-fluid mt-3">`;
+                    }
+                    
+                    if (!resultHtml) {
+                        resultHtml = '<div class="alert alert-warning">No results generated for this query.</div>';
+                    }
+                    
+                    // Display results
+                    $('#results-container').html(resultHtml);
+                },
+                error: function(xhr) {
+                    // Hide loading spinner
+                    $('#loading-spinner').addClass('d-none');
+                    $('#process-btn').prop('disabled', false);
+                    
+                    let errorMessage = 'An error occurred while processing your query.';
+                    if (xhr.responseJSON && xhr.responseJSON.error) {
+                        errorMessage = xhr.responseJSON.error;
+                    }
+                    
+                    // Display error
+                    $('#results-container').html(`
+                        <div class="alert alert-danger">
+                            <strong>Error:</strong> ${errorMessage}
+                        </div>
+                    `);
+                }
+            });
+        });
+    });
+</script>
+{% endblock %} 

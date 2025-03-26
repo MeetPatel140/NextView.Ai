@@ -48,14 +48,14 @@
             </div>
         </div>
         
-        {% if dataset.is_processed and dataset.metadata %}
+        {% if dataset.is_processed and metadata and metadata.columns %}
         <div class="card">
             <div class="card-header">
                 <h5 class="card-title mb-0">Column Information</h5>
             </div>
             <div class="card-body p-0">
                 <div class="list-group list-group-flush">
-                    {% for column in dataset.metadata.columns %}
+                    {% for column in metadata.columns %}
                     <div class="list-group-item">
                         <h6 class="mb-1">{{ column.name }}</h6>
                         <small class="d-block text-muted mb-1">Type: {{ column.type }}</small>
@@ -89,33 +89,38 @@
             <div class="card-body">
                 {% if dataset.is_processed and preview_data %}
                 <div class="table-responsive">
-                    <table class="table table-striped table-hover">
-                        <thead>
-                            <tr>
-                                {% for column in columns %}
-                                <th>{{ column }}</th>
+                    <div class="data-table-container" style="max-height: 500px; overflow-y: auto;">
+                        <table class="table table-sm table-hover table-bordered table-striped">
+                            <thead class="sticky-top bg-light">
+                                <tr>
+                                    {% for column in columns %}
+                                    <th class="px-2 py-2" style="white-space: nowrap; min-width: 100px;">{{ column }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in preview_data %}
+                                <tr>
+                                    {% for column in columns %}
+                                    <td class="px-2 py-1" style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ row[column] }}</td>
+                                    {% endfor %}
+                                </tr>
                                 {% endfor %}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for row in preview_data %}
-                            <tr>
-                                {% for column in columns %}
-                                <td>{{ row[column] }}</td>
-                                {% endfor %}
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <div class="text-muted small mt-2">Showing first 10 rows of data.</div>
+                <div class="text-muted small mt-2 d-flex justify-content-between">
+                    <div>Showing first 10 rows of {{ dataset.row_count }} total rows.</div>
+                    <div>Tip: Hover over cells to see full content. Scroll horizontally to see all columns.</div>
+                </div>
                 {% elif not dataset.is_processed %}
-                <div class="text-center py-5">
+                <div class="text-center py-5" id="processingStatus">
                     <div class="spinner-border text-primary mb-3" role="status">
                         <span class="visually-hidden">Loading...</span>
                     </div>
                     <h5>Processing Dataset</h5>
-                    <p class="text-muted">This may take a few moments depending on the file size.</p>
+                    <p class="text-muted" id="processingText">This may take a few moments depending on the file size.</p>
                 </div>
                 {% else %}
                 <div class="alert alert-warning">
@@ -163,4 +168,111 @@
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        {% if not dataset.is_processed %}
+        // Variables for status checking
+        var lastTriggered = Math.floor(Date.now() / 1000);
+        var checkCounter = 0;
+        var maxChecks = 60; // 5 minutes at 5-second intervals
+        
+        // Function to update processing UI
+        function updateProcessingUI(status, counter) {
+            var processingText = $('#processingText');
+            
+            if (!status.file_exists) {
+                processingText.html('Error: File not found. Please upload the file again.');
+                clearInterval(checkInterval);
+                return;
+            }
+            
+            if (counter > 30) {
+                processingText.html('Still processing... This is taking longer than expected. Please be patient.');
+            } else if (counter > 15) {
+                processingText.html('Processing dataset... This may take several minutes for large files.');
+            }
+        }
+        
+        // Status checking interval
+        var checkInterval = setInterval(function() {
+            checkCounter++;
+            if (checkCounter > maxChecks) {
+                clearInterval(checkInterval);
+                $('#processingStatus').html('<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>Processing timed out. Please try reloading the page or contact support.</div>');
+                return;
+            }
+            
+            $.ajax({
+                url: '/api/datasets/{{ dataset.id }}/status?last_triggered=' + lastTriggered,
+                method: 'GET',
+                success: function(response) {
+                    lastTriggered = response.timestamp;
+                    
+                    if (response.is_processed) {
+                        clearInterval(checkInterval);
+                        window.location.reload();
+                        return;
+                    }
+                    
+                    updateProcessingUI(response, checkCounter);
+                },
+                error: function(xhr) {
+                    try {
+                        var errorData = JSON.parse(xhr.responseText);
+                        $('#processingStatus').html('<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>Error: ' + (errorData.error || 'Unknown error') + '</div>');
+                    } catch(e) {
+                        $('#processingStatus').html('<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>Error checking processing status</div>');
+                    }
+                }
+            });
+        }, 5000);
+        {% endif %}
+
+        // Download handlers
+        $('#downloadCSV').click(function() {
+            window.location.href = '/api/datasets/{{ dataset.id }}/download?format=csv';
+        });
+        
+        $('#downloadExcel').click(function() {
+            window.location.href = '/api/datasets/{{ dataset.id }}/download?format=excel';
+        });
+        
+        // AI query handler
+        $('#askAI').click(function() {
+            var query = $('#aiQuery').val();
+            if (!query) return;
+            
+            $('#aiResponse').removeClass('d-none');
+            $('#aiResponseContent').html('<div class="text-center"><div class="spinner-border spinner-border-sm text-primary" role="status"></div> Processing your request...</div>');
+            
+            // Get CSRF token
+            var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            
+            $.ajax({
+                url: '/api/datasets/{{ dataset.id }}/ai-query',
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken
+                },
+                data: JSON.stringify({query: query}),
+                contentType: 'application/json',
+                success: function(response) {
+                    $('#aiResponseContent').html(response.response);
+                },
+                error: function() {
+                    $('#aiResponseContent').html('<div class="alert alert-danger">Error processing your request. Please try again.</div>');
+                }
+            });
+        });
+        
+        // Suggested question handler
+        $('.suggested-question').click(function() {
+            $('#aiQuery').val($(this).text());
+            $('#askAI').click();
+        });
+    });
+</script>
 {% endblock %}

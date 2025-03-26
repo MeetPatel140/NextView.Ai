@@ -24,7 +24,10 @@ xlrd==2.0.1
 
 # AI and NLP
 openai==1.3.5
-llama-index==0.9.11
+transformers==4.36.2
+sentence-transformers==2.2.2
+scikit-learn==1.3.2
+torch==2.1.2
 
 # Visualization
 matplotlib==3.8.0
