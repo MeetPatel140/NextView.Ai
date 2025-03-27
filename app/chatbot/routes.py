@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from app.chatbot import bp
 from app.models.chatbot import ChatSession
 from app.models.chatbot_message import ChatMessage
+from app.chatbot.ai_service import AIService
 from datetime import datetime
 
 @bp.route('/chat')
@@ -36,9 +37,25 @@ def send_message():
     )
     user_msg.save()
     
-    # This is a placeholder for actual AI processing
-    # In a real implementation, this would call OpenAI or another AI service
-    ai_response = "I'm sorry, the AI processing functionality is still being implemented. Please check back soon!"
+    # Get image URL if provided
+    image_url = data.get('image_url')
+    
+    # Get chat history for context
+    chat_history = ChatMessage.query.filter_by(session_id=chat_session.id).order_by(ChatMessage.created_at).all()
+    messages = [{
+        'role': msg.role,
+        'content': msg.content
+    } for msg in chat_history]
+    
+    # Add current user message
+    messages.append({
+        'role': 'user',
+        'content': user_message
+    })
+    
+    # Get AI response using OpenRouter API
+    ai_service = AIService()
+    ai_response = ai_service.create_chat_completion(messages, image_url)
     
     # Save AI response
     ai_msg = ChatbotMessage(
