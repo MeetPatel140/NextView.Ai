@@ -1,7 +1,9 @@
 from flask import jsonify, request, current_app
+from flask import jsonify, request, current_app
 from flask_login import login_required, current_user
 from app.api import bp
 from app.models.dataset import Dataset, Visualization
+from app import db
 from app import db
 import pandas as pd
 import os

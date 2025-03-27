@@ -30,6 +30,7 @@ def send_message():
     
     # Save user message
     user_msg = ChatbotMessage(
+    user_msg = ChatbotMessage(
         session_id=chat_session.id,
         content=user_message,
         role='user',
@@ -59,9 +60,11 @@ def send_message():
     
     # Save AI response
     ai_msg = ChatbotMessage(
+    ai_msg = ChatbotMessage(
         session_id=chat_session.id,
         content=ai_response,
         role='assistant',
+        created_at=datetime.utcnow()
         created_at=datetime.utcnow()
     )
     ai_msg.save()

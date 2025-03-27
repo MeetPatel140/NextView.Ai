@@ -19,7 +19,6 @@ class Dataset(db.Model):
     row_count = db.Column(db.Integer, nullable=True)
     column_count = db.Column(db.Integer, nullable=True)
     dataset_metadata = db.Column(db.JSON, nullable=True)  # Store column info, data types, etc.
-    task_id = db.Column(db.String(255), nullable=True)  # Store Celery task ID for tracking
     
     # Relationships
     owner = db.relationship('User', back_populates='datasets', uselist=False)

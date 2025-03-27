@@ -17,32 +17,9 @@ celery = Celery()
 
 def create_celery_app(app=None):
     app = app or create_app()
+    celery.conf.update(app.config)
     
-    # Configure Celery directly with broker and backend URLs
-    celery.conf.broker_url = app.config.get('broker_url')
-    celery.conf.result_backend = app.config.get('result_backend')
-    
-    # Set broker_connection_retry_on_startup to True to fix deprecation warning
-    celery.conf.broker_connection_retry_on_startup = True
-    
-    # Set task_create_missing_queues to ensure tasks are properly routed
-    celery.conf.task_create_missing_queues = True
-    
-    # Configure task serialization
-    celery.conf.task_serializer = 'json'
-    celery.conf.result_serializer = 'json'
-    celery.conf.accept_content = ['json']
-    
-    # Set task_always_eager to False to ensure tasks are processed by workers
-    celery.conf.task_always_eager = False
-    
-    # Set task_acks_late to True to ensure tasks are acknowledged after execution
-    celery.conf.task_acks_late = True
-    
-    # Define a custom task class that maintains Flask app context
     class ContextTask(celery.Task):
-        abstract = True
-        
         def __call__(self, *args, **kwargs):
             with app.app_context():
                 return self.run(*args, **kwargs)
@@ -85,7 +62,7 @@ def create_app():
     app.register_blueprint(chatbot_bp, url_prefix='/chatbot')
     
     # Initialize Celery
-    celery_instance = create_celery_app(app)
+    create_celery_app(app)
     
     # Add context processor for template variables
     @app.context_processor
@@ -96,7 +73,6 @@ def create_app():
     return app
 
 app = create_app()
-celery = create_celery_app(app)
 
 # Import models to ensure they are registered with SQLAlchemy
 from app import models
