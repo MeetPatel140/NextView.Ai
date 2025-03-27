@@ -20,27 +20,31 @@
         <div class="col-md-8 mx-auto">
             <div class="card">
                 <div class="card-body">
-                    <form method="post" action="{{ url_for('main.new_chat') }}">
+                    <form method="POST" action="{{ url_for('main.new_chat') }}">
+                        {% if form %}
+                            {{ form.csrf_token }}
+                        {% else %}
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        {% endif %}
                         <div class="mb-3">
                             <label for="title" class="form-label">Chat Title (Optional)</label>
-                            <input type="text" class="form-control" id="title" name="title" placeholder="My New Chat">
-                            <div class="form-text">If left blank, a title will be generated based on your conversation.</div>
+                            <input type="text" class="form-control" id="title" name="title" placeholder="Enter a title for this chat">
                         </div>
                         
                         <div class="mb-3">
-                            <label for="dataset_id" class="form-label">Link to Dataset (Optional)</label>
+                            <label for="dataset_id" class="form-label">Link Dataset (Optional)</label>
                             <select class="form-select" id="dataset_id" name="dataset_id">
-                                <option value="">None - General conversation</option>
+                                <option value="">None - General Chat</option>
                                 {% for dataset in datasets %}
                                 <option value="{{ dataset.id }}">{{ dataset.name }}</option>
                                 {% endfor %}
                             </select>
-                            <div class="form-text">Linking to a dataset allows the AI to analyze and answer questions about your data.</div>
+                            <div class="form-text">Linking a dataset allows the AI to reference it during your conversation.</div>
                         </div>
                         
-                        <div class="d-grid gap-2">
+                        <div class="d-grid gap-2 mt-4">
                             <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-plus-circle me-2"></i>Create Chat
+                                <i class="fas fa-comment me-2"></i> Start Chat
                             </button>
                         </div>
                     </form>

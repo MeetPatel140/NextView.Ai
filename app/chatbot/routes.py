@@ -5,6 +5,7 @@ from app.models.chatbot import ChatSession
 from app.models.chatbot_message import ChatMessage
 from app.chatbot.ai_service import AIService
 from datetime import datetime
+import json
 
 @bp.route('/chat')
 @login_required
@@ -21,6 +22,7 @@ def send_message():
         return jsonify({'error': 'No message provided'}), 400
     
     user_message = data['message']
+    dataset_id = data.get('dataset_id')  # Optional dataset ID if specified
     
     # Create or get existing chat session
     chat_session = ChatSession.query.filter_by(user_id=current_user.id, is_active=True).first()
@@ -71,6 +73,7 @@ def send_message():
     
     return jsonify({
         'response': ai_response,
+        'metadata': response_metadata,
         'timestamp': datetime.utcnow().isoformat()
     })
 

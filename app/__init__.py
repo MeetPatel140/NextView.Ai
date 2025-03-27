@@ -1,4 +1,5 @@
 import os
+import logging
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -8,12 +9,16 @@ from flask_wtf.csrf import CSRFProtect
 from celery import Celery
 from config import get_config
 
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Initialize extensions
 db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()
 csrf = CSRFProtect()
-celery = Celery()
+celery = Celery("nextview")
 
 def create_celery_app(app=None):
     app = app or create_app()
@@ -22,14 +27,24 @@ def create_celery_app(app=None):
     class ContextTask(celery.Task):
         def __call__(self, *args, **kwargs):
             with app.app_context():
-                return self.run(*args, **kwargs)
+                try:
+                    return self.run(*args, **kwargs)
+                except Exception as e:
+                    logger.exception(f"Task {self.name} failed: {str(e)}")
+                    raise
     
     celery.Task = ContextTask
+    logger.info("Celery configured with broker: %s", celery.conf.broker_url)
+    
     return celery
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(get_config())
+    
+    # Configure Flask app logging
+    if not app.debug:
+        logging.getLogger('werkzeug').setLevel(logging.WARNING)
     
     # Initialize extensions with app
     db.init_app(app)
@@ -72,7 +87,12 @@ def create_app():
     
     return app
 
+# Create global celery instance
 app = create_app()
 
 # Import models to ensure they are registered with SQLAlchemy
 from app import models
+
+# Import tasks to ensure they are registered with Celery
+with app.app_context():
+    import app.main.routes

@@ -2,6 +2,61 @@
 
 {% block title %}Chat: {{ session.title or 'Untitled Chat' }}{% endblock %}
 
+{% block extra_css %}
+<!-- Markdown parsing library -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<!-- Highlight.js for code syntax highlighting -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/vs2015.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+<style>
+    /* Additional styling for report/analysis features */
+    .generate-btn {
+        position: absolute;
+        top: 0;
+        right: 0;
+        padding: 5px 10px;
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: 0 18px 18px 0;
+        font-size: 0.8rem;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+    
+    .message:hover .generate-btn {
+        opacity: 1;
+    }
+    
+    .message table {
+        width: 100%;
+        margin: 10px 0;
+        border-collapse: collapse;
+    }
+    
+    .message th, .message td {
+        padding: 6px 10px;
+        border: 1px solid #ddd;
+    }
+    
+    .message th {
+        background-color: #f2f2f2;
+        font-weight: bold;
+    }
+    
+    .message tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+    
+    .message img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 5px;
+        margin: 10px 0;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container">
     <div class="row mb-4">
@@ -26,14 +81,20 @@
                 <div class="chat-messages" id="chat-messages">
                     {% for message in messages %}
                         <div class="message {% if message.role == 'user' %}user-message{% else %}assistant-message{% endif %}">
+                            {% if message.role == 'user' and session.dataset %}
+                                <button class="generate-btn" data-query="{{ message.content }}" title="Generate report/visualization from this query">
+                                    <i class="fas fa-chart-line"></i> Generate
+                                </button>
+                            {% endif %}
                             {{ message.content|safe }}
                         </div>
                     {% endfor %}
                 </div>
                 <div class="chat-input">
                     <form id="chat-form" action="{{ url_for('main.send_message', session_id=session.session_id) }}" method="post">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="input-group">
-                            <input type="text" id="message" name="message" class="form-control" placeholder="Type your message..." required>
+                            <input type="text" id="message" name="message" class="form-control" placeholder="Type your message..." required autofocus>
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-paper-plane"></i>
                             </button>
@@ -47,11 +108,131 @@
 
 {% block scripts %}
 <script>
-    // Scroll to bottom of chat messages on page load
+    // Initialize syntax highlighting
     document.addEventListener('DOMContentLoaded', function() {
+        // Scroll to bottom of chat messages
         const chatMessages = document.getElementById('chat-messages');
         chatMessages.scrollTop = chatMessages.scrollHeight;
+        
+        // Initialize markdown parser with safe settings
+        marked.setOptions({
+            breaks: true,  // Convert line breaks to <br>
+            sanitize: false, // Let's rely on DOMPurify for sanitization
+            mangle: false,
+            headerIds: false,
+            highlight: function(code, language) {
+                if (language && hljs.getLanguage(language)) {
+                    try {
+                        return hljs.highlight(code, { language }).value;
+                    } catch(e) {}
+                }
+                return code;
+            }
+        });
+        
+        // Apply syntax highlighting to any existing code blocks
+        document.querySelectorAll('pre code').forEach((block) => {
+            hljs.highlightElement(block);
+        });
+        
+        // Setup generate buttons
+        setupGenerateButtons();
     });
+    
+    // Helper function to sanitize HTML content
+    function sanitizeHTML(html) {
+        // Basic sanitization - in production, use a library like DOMPurify
+        return html
+            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+            .replace(/on\w+="[^"]*"/g, '');
+    }
+    
+    // Format message content with markdown
+    function formatMessage(content) {
+        // Convert markdown to HTML
+        const rawHtml = marked.parse(content);
+        
+        // Sanitize the HTML content
+        return sanitizeHTML(rawHtml);
+    }
+    
+    // Setup generate buttons for NLP queries
+    function setupGenerateButtons() {
+        document.querySelectorAll('.generate-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const query = this.getAttribute('data-query');
+                generateReport(query);
+            });
+        });
+    }
+    
+    // Generate report/visualization from NLP query
+    function generateReport(query) {
+        // Get CSRF token
+        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+        
+        // Add typing indicator
+        const chatMessages = document.getElementById('chat-messages');
+        const typingIndicator = document.createElement('div');
+        typingIndicator.className = 'typing-indicator';
+        typingIndicator.innerHTML = '<span></span><span></span><span></span>';
+        chatMessages.appendChild(typingIndicator);
+        
+        // Scroll to bottom
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        
+        // Make API request to generate report
+        fetch('{{ url_for("main.generate_from_nlp", session_id=session.session_id) }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                query: query
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Remove typing indicator
+            chatMessages.removeChild(typingIndicator);
+            
+            if (data.error) {
+                // Show error message
+                const errorMessageDiv = document.createElement('div');
+                errorMessageDiv.className = 'message assistant-message';
+                errorMessageDiv.innerHTML = '<span class="text-danger">Error: ' + data.error + '</span>';
+                chatMessages.appendChild(errorMessageDiv);
+            } else {
+                // Show success message - no need to add to chat as the API should have already saved these messages
+                // Just scroll to the bottom to reveal the new messages
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                
+                // Reload the page to show the updated chat history with the visualization
+                window.location.reload();
+            }
+        })
+        .catch(error => {
+            // Remove typing indicator
+            chatMessages.removeChild(typingIndicator);
+            
+            // Add error message
+            const errorMessageDiv = document.createElement('div');
+            errorMessageDiv.className = 'message assistant-message';
+            errorMessageDiv.innerHTML = '<span class="text-danger">Error: Could not generate report. Please try again.</span>';
+            chatMessages.appendChild(errorMessageDiv);
+            
+            // Scroll to bottom
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            console.error('Error:', error);
+        });
+    }
     
     // Handle form submission with AJAX
     document.getElementById('chat-form').addEventListener('submit', function(e) {
@@ -66,7 +247,27 @@
             const userMessageDiv = document.createElement('div');
             userMessageDiv.className = 'message user-message';
             userMessageDiv.textContent = message;
+            
+            // Add generate button if dataset is linked
+            {% if session.dataset %}
+            const generateBtn = document.createElement('button');
+            generateBtn.className = 'generate-btn';
+            generateBtn.setAttribute('data-query', message);
+            generateBtn.setAttribute('title', 'Generate report/visualization from this query');
+            generateBtn.innerHTML = '<i class="fas fa-chart-line"></i> Generate';
+            generateBtn.addEventListener('click', function() {
+                generateReport(message);
+            });
+            userMessageDiv.appendChild(generateBtn);
+            {% endif %}
+            
             chatMessages.appendChild(userMessageDiv);
+            
+            // Add typing indicator
+            const typingIndicator = document.createElement('div');
+            typingIndicator.className = 'typing-indicator';
+            typingIndicator.innerHTML = '<span></span><span></span><span></span>';
+            chatMessages.appendChild(typingIndicator);
             
             // Clear input
             messageInput.value = '';
@@ -74,28 +275,66 @@
             // Scroll to bottom
             chatMessages.scrollTop = chatMessages.scrollHeight;
             
+            // Get CSRF token from input
+            const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+            
             // Send message to server
             fetch(this.action, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken
                 },
                 body: new URLSearchParams({
-                    'message': message
+                    'message': message,
+                    'csrf_token': csrfToken
                 })
             })
             .then(response => response.json())
             .then(data => {
+                // Remove typing indicator
+                chatMessages.removeChild(typingIndicator);
+                
                 // Add assistant response to chat
                 const assistantMessageDiv = document.createElement('div');
                 assistantMessageDiv.className = 'message assistant-message';
-                assistantMessageDiv.innerHTML = data.response;
+                
+                // Check if this is a comprehensive report with multiple visualizations
+                if (data.metadata && data.metadata.type === 'comprehensive_report') {
+                    // Format message with markdown
+                    assistantMessageDiv.innerHTML = formatMessage(data.response);
+                    
+                    // Add special class for comprehensive reports
+                    assistantMessageDiv.classList.add('comprehensive-report');
+                } else {
+                    // Format message with markdown for regular responses
+                    assistantMessageDiv.innerHTML = formatMessage(data.response);
+                }
+                
+                // Add to chat
                 chatMessages.appendChild(assistantMessageDiv);
                 
                 // Scroll to bottom
                 chatMessages.scrollTop = chatMessages.scrollHeight;
+                
+                // Apply syntax highlighting to any new code blocks
+                assistantMessageDiv.querySelectorAll('pre code').forEach((block) => {
+                    hljs.highlightElement(block);
+                });
             })
             .catch(error => {
+                // Remove typing indicator
+                chatMessages.removeChild(typingIndicator);
+                
+                // Add error message
+                const errorMessageDiv = document.createElement('div');
+                errorMessageDiv.className = 'message assistant-message';
+                errorMessageDiv.innerHTML = '<span class="text-danger">Error: Could not get response. Please try again.</span>';
+                chatMessages.appendChild(errorMessageDiv);
+                
+                // Scroll to bottom
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                
                 console.error('Error:', error);
             });
         }
