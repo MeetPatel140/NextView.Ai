@@ -4,6 +4,7 @@ from app.api import bp
 from app.models.dataset import Dataset, Visualization
 from app import db
 import pandas as pd
+import os
 
 @bp.route('/datasets', methods=['GET'])
 @login_required
@@ -48,6 +49,26 @@ def get_dataset(dataset_id):
             'preview': preview
         }
     })
+
+@bp.route('/datasets/<int:dataset_id>', methods=['DELETE'])
+@login_required
+def delete_dataset(dataset_id):
+    """API endpoint to delete a specific dataset"""
+    dataset = Dataset.query.filter_by(id=dataset_id, user_id=current_user.id).first_or_404()
+    
+    try:
+        # Delete the dataset file if it exists
+        if os.path.exists(dataset.file_path):
+            os.remove(dataset.file_path)
+        
+        # Delete the dataset from database
+        db.session.delete(dataset)
+        db.session.commit()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @bp.route('/visualizations', methods=['GET'])
 @login_required
