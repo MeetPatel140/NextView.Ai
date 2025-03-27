@@ -3,7 +3,9 @@ from flask_login import login_required, current_user
 from app.chatbot import bp
 from app.models.chatbot import ChatSession
 from app.models.chatbot_message import ChatMessage
+from app.chatbot.ai_service import AIService
 from datetime import datetime
+import json
 
 @bp.route('/chat')
 @login_required
@@ -20,6 +22,7 @@ def send_message():
         return jsonify({'error': 'No message provided'}), 400
     
     user_message = data['message']
+    dataset_id = data.get('dataset_id')  # Optional dataset ID if specified
     
     # Create or get existing chat session
     chat_session = ChatSession.query.filter_by(user_id=current_user.id, is_active=True).first()
@@ -29,6 +32,7 @@ def send_message():
     
     # Save user message
     user_msg = ChatbotMessage(
+    user_msg = ChatbotMessage(
         session_id=chat_session.id,
         content=user_message,
         role='user',
@@ -36,21 +40,40 @@ def send_message():
     )
     user_msg.save()
     
-    # This is a placeholder for actual AI processing
-    # In a real implementation, this would call OpenAI or another AI service
-    ai_response = "I'm sorry, the AI processing functionality is still being implemented. Please check back soon!"
+    # Get image URL if provided
+    image_url = data.get('image_url')
+    
+    # Get chat history for context
+    chat_history = ChatMessage.query.filter_by(session_id=chat_session.id).order_by(ChatMessage.created_at).all()
+    messages = [{
+        'role': msg.role,
+        'content': msg.content
+    } for msg in chat_history]
+    
+    # Add current user message
+    messages.append({
+        'role': 'user',
+        'content': user_message
+    })
+    
+    # Get AI response using OpenRouter API
+    ai_service = AIService()
+    ai_response = ai_service.create_chat_completion(messages, image_url)
     
     # Save AI response
+    ai_msg = ChatbotMessage(
     ai_msg = ChatbotMessage(
         session_id=chat_session.id,
         content=ai_response,
         role='assistant',
+        created_at=datetime.utcnow()
         created_at=datetime.utcnow()
     )
     ai_msg.save()
     
     return jsonify({
         'response': ai_response,
+        'metadata': response_metadata,
         'timestamp': datetime.utcnow().isoformat()
     })
 
